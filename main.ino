@@ -3,31 +3,47 @@
 Servo servo;
 
 byte digit = 0;           // 目前數字 0~9
+byte mode = 0;            // 目前模式
 byte buttonState = 0;     // 按鈕狀態
 byte lastButtonState = 0; // 按鈕最後狀態
-byte speed = 90;          // 速度
-byte speedState = 10;     // 速度段數，預設 10 靜止
-byte speedDirection = 1;  // 方向
-byte speedControl = 0;    // 速度控制
-unsigned int skip[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-unsigned int freq = 0;
-byte mode = 0; // 模式九模式
 
-byte speeds[21] = {
-    75, 76, 77, 78, 79, 80, 81, 82, 83, 84,         // 順時鐘
-    90,                                             // 靜止
-    99, 100, 101, 102, 103, 104, 105, 106, 107, 108 // 逆時鐘
+unsigned long toggled[10]; // 時間狀態開關
+unsigned int step = 0;     // 目前腳本步驟
+// 計時間隔 mode 0 ~ 9
+unsigned int interval[10] = {1000, 100, 500, 500, 50, 300, 500, 10000, 1000, 1000};
+
+// GWS S35/STD
+//byte speeds[21] = {
+//    75, 76, 77, 78, 79, 80, 81, 82, 83, 84, // 順時鐘 0 ~ 9
+//    90,                                     // 靜止 10
+//    91, 92, 93, 94, 95, 96, 97, 98, 99, 100 // 逆時鐘 11 ~ 20
+//};
+
+// SG 90
+// int speeds[21] = {
+//     1400, 1402, 1403, 1405, 1406, 1407, 1408, 1409, 1410, 1411, // 順時鐘 0 ~ 9
+//     1450,                                                       // 靜止 10
+//     1565, 1566, 1567, 1569, 1570, 1571, 1572, 1573, 1574, 1580  // 逆時鐘 11 ~ 20
+// };
+
+// SG 90 只用慢速
+int speeds[21] = {
+    1407, 1407, 1408, 1408, 1409, 1409, 1410, 1410, 1411, 1411, // 順時鐘 0 ~ 9
+    1450,                                                       // 靜止 10
+    1565, 1565, 1566, 1566, 1567, 1567, 1569, 1569, 1570, 1570  // 逆時鐘 11 ~ 20
 };
 
 byte seven_seg_digits[10][7] = {
-    {1, 1, 1, 1, 1, 1, 0}, // = 0
+    // {1, 1, 1, 1, 1, 1, 0}, // = 0
+    {0, 0, 0, 0, 0, 0, 0}, // = null
     {0, 1, 1, 0, 0, 0, 0}, // = 1
     {1, 1, 0, 1, 1, 0, 1}, // = 2
     {1, 1, 1, 1, 0, 0, 1}, // = 3
     {0, 1, 1, 0, 0, 1, 1}, // = 4
     {1, 0, 1, 1, 0, 1, 1}, // = 5
     {1, 0, 1, 1, 1, 1, 1}, // = 6
-    {1, 1, 1, 0, 0, 0, 0}, // = 7
+    // {1, 1, 1, 0, 0, 0, 0}, // = 7
+    {1, 1, 1, 0, 1, 1, 1}, // = A
     {1, 1, 1, 1, 1, 1, 1}, // = 8
     {1, 1, 1, 1, 0, 1, 1}  // = 9
 };
@@ -44,7 +60,6 @@ void setup()
     pinMode(9, INPUT);  // 按鈕腳位
     Serial.begin(9600);
     servo.write(90);
-    servo.attach(10); // 伺服機腳位
 }
 
 void sevenSegWrite(byte digit)
@@ -56,63 +71,46 @@ void sevenSegWrite(byte digit)
         ++pin;
     }
 }
-/**海浪
- * 靜止 -> 遞增 -> 遞減 -> 轉向 -> 遞增 -> 遞減
- */
-void surfServo(byte start, byte goal)
-{
-    if (speedState <= start || speedState >= goal)
-    {
-        speedDirection *= -1;
-    }
-    speedState = speedState + speedDirection;
-}
 
-/**虛線
- * 靜止 -> 正轉
- */
-void dottedServo()
+int sin_wave(int degree)
 {
-    if (speedControl == 0)
-    {
-        speedState = 10;
-        speedControl = 1;
-    }
-    else if (speedControl == 1)
-    {
-        if (speedDirection == 1)
-        {
-            speedState = 5;
-        }
-        else
-        {
-            speedState = 15;
-        }
-        speedControl = 0;
-    }
+    return sin((degree % 360) * PI / 180.0) * 10 + 10;
 }
-
-void surfDottedServo()
+int sawtooth_wave(int degree)
 {
-    if (speedControl == 0)
-    {
-        speed = 90;
-        speedControl = 1;
-    }
-    else if (speedControl == 1)
-    {
-        surfServo(0, 20);
-        speed = speeds[speedState];
-        speedControl = 0;
-    }
+    return degree % 11;
 }
-
-bool delayCount(int count, byte channel)
+int triangle_wave(int degree)
 {
-    if (count <= 0)
-        count = 1;
-    skip[channel] = (skip[channel] + 1) % count;
-    return skip[channel] == 0;
+    return abs(degree % 20 - 10);
+}
+int curvy_triangle_wave(int degree)
+{
+    return pow(abs((degree % 200) - 100), 0.5);
+}
+int square_wave(int degree)
+{
+    return 5 + (degree % 2) * 5;
+}
+int trapezoidal_wave(int degree)
+{
+    int x = degree % 40;
+    if (x < 10)
+    {
+        return 11 + x;
+    }
+    else if (x < 20)
+    {
+        return 20;
+    }
+    else if (x < 30)
+    {
+        return 20 - x % 10;
+    }
+    else
+    {
+        return 10;
+    }
 }
 
 void loop()
@@ -122,21 +120,16 @@ void loop()
     {
         if (buttonState == HIGH)
         {
-            digit = (digit + 1) % 10;
-            speed = 90;
-            speedState = 10;
-            speedControl = 0;
-            for (byte channel = 0; channel < 10; channel++)
+            digit = (digit + 1) % 8;
+            step = 0;
+            switch (digit)
             {
-                skip[channel] = 0;
-            }
-            if (digit == 0)
-            {
-                speedDirection = 1;
-            }
-            else
-            {
-                speedDirection = random(0, 2) == 0 ? 1 : -1;
+            case 0:
+                servo.detach();
+                break;
+            default:
+                servo.attach(10, 500, 2400);
+                break;
             }
             Serial.print("Mode: ");
             Serial.println(digit);
@@ -144,159 +137,67 @@ void loop()
         delay(50);
     }
     lastButtonState = buttonState;
-    // 固定頻率處理
-    freq = (freq + 1) % 100;
-    if (freq == 0)
-    {
-        if (digit == 1)
-        {
-            /**模式一
-             * 海浪
-             */
-            if (delayCount(50, 0))
-            {
-                surfServo(0, 20);
-                speed = speeds[speedState];
-            }
-        }
-        else if (digit == 2)
-        {
-            /**模式二
-             * 頻率慢虛線
-             */
-            if (delayCount(100, 0))
-            {
-                dottedServo();
-                speed = speeds[speedState];
-            }
-        }
-        else if (digit == 3)
-        {
-            /**模式三
-             * 頻率快虛線
-             */
-            if (delayCount(10, 0))
-            {
-                dottedServo();
-                speed = speeds[speedState];
-            }
-        }
-        else if (digit == 4)
-        {
-            /**模式四
-             * 頻率漸快虛線
-             */
-            if (delayCount(10, 0))
-            {
-                surfDottedServo();
-            }
-        }
-        else if (digit == 5)
-        {
-            /**模式五
-             * 跳跳球
-             */
-            if (delayCount(1000, 1))
-            {
-                speedState = 10;
-                if (speedControl == 0)
-                {
-                    speedControl = 1;
-                    speedDirection = -1;
-                }
-                else
-                {
-                    speedControl = 0;
-                    speedDirection = 1;
-                }
-            }
-            if (delayCount(10, 0))
-            {
-                if (speedControl == 0)
-                {
-                    surfServo(0, 10);
-                }
-                else
-                {
-                    surfServo(10, 20);
-                }
-                speed = speeds[speedState];
-            }
-        }
-        else if (digit == 6)
-        {
-            /**模式六
-             * 隨機時間、速度
-             */
-            if (delayCount(speedControl, 0))
-            {
-                speedState = random(0, 30);
-                if (speedState >= 20)
-                {
-                    speedState = 10;
-                }
-                speed = speeds[speedState];
-                speedControl = random(10, 1000);
-            }
-        }
-        else if (digit == 9)
-        {
-            /**模式九
-             * 隨機
-             */
-            if (delayCount(1000, 1))
-            {
-                mode = random(0, 5);
-                speedDirection = random(0, 2) == 0 ? 1 : -1;
-            }
-            if (mode == 0)
-            {
-                if (delayCount(50, 0))
-                {
-                    surfServo(0, 20);
-                    speed = speeds[speedState];
-                }
-            }
-            else if (mode == 1)
-            {
-                if (delayCount(100, 0))
-                {
-                    dottedServo();
-                    speed = speeds[speedState];
-                }
-            }
-            else if (mode == 2)
-            {
-                if (delayCount(10, 0))
-                {
-                    dottedServo();
-                    speed = speeds[speedState];
-                }
-            }
-            else if (mode == 3)
-            {
-                if (delayCount(10, 0))
-                {
-                    surfDottedServo();
-                }
-            }
-            else if (mode == 4)
-            {
-                if (delayCount(speedControl, 0))
-                {
-                    speedState = random(0, 30);
-                    if (speedState >= 20)
-                    {
-                        speedState = 10;
-                    }
-                    speed = speeds[speedState];
-                    speedControl = random(10, 1000);
-                }
-            }
-        }
-    }
     // 設定數字
     sevenSegWrite(digit);
-    // 設定伺服機
-    servo.write(speed);
+    // 模式 9
+    if (digit == 7)
+    {
+        if ((millis() - toggled[7]) >= interval[7])
+        {
+            mode = random(1, 6); // 2 ~ 8
+            Serial.print("Mode: ");
+            Serial.println(mode);
+            toggled[7] = millis();
+        }
+    }
+    else
+    {
+        mode = digit;
+    }
+    // 燈號模式
+    if ((millis() - toggled[mode]) >= interval[mode])
+    {
+        step = (step + 1) % 3600;
+        switch (mode)
+        {
+        case 1:
+            // 正弦波
+            // Serial.println(sin_wave(step));
+            servo.writeMicroseconds(speeds[sin_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        case 2:
+            // 鋸齒波
+            // Serial.println(sawtooth_wave(step));
+            servo.writeMicroseconds(speeds[sawtooth_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        case 3:
+            // 三角波
+            // Serial.println(triangle_wave(step));
+            servo.writeMicroseconds(speeds[triangle_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        case 4:
+            // 彎曲的三角波
+            // Serial.println(curvy_triangle_wave(step));
+            servo.writeMicroseconds(speeds[curvy_triangle_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        case 5:
+            // 方波
+            // Serial.println(square_wave(step));
+            servo.writeMicroseconds(speeds[square_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        case 6:
+            // 梯形波
+            // Serial.println(trapezoidal_wave(step));
+            servo.writeMicroseconds(speeds[trapezoidal_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        default:
+            break;
+        }
+    }
 }
