@@ -19,12 +19,14 @@
 * [Number 4] Curvy triangle wave
 * [Number 5] Square wave
 * [Number 6] Trapezoidal wave
+* [Number 7] Tempo wave
+* [Number 8] Two-way square wave
 * [English R] Random wave
 
 ### Memory use
 
-Sketch uses 6974 bytes (48%) of program storage space. Maximum is 14336 bytes.
-Global variables use 417 bytes (40%) of dynamic memory, leaving 607 bytes for local variables. Maximum is 1024 bytes.
+Sketch uses 7148 bytes (49%) of program storage space. Maximum is 14336 bytes.
+Global variables use 433 bytes (42%) of dynamic memory, leaving 607 bytes for local variables. Maximum is 1024 bytes.
 
 ## Circuit Design
 
@@ -84,12 +86,14 @@ Global variables use 417 bytes (40%) of dynamic memory, leaving 607 bytes for lo
 * [數字4] 彎曲的三角波
 * [數字5] 方波
 * [數字6] 梯形波
+* [數字7] 節奏波
+* [數字8] 低速方波
 * [英文R] 隨機波形
 
 ### 記憶體占用
 
-* 草稿碼使用了 6974 bytes (48%) 的程式儲存空間。上限為 14336 bytes。
-* 全域變數使用了 417 bytes (40%) 的動態記憶體，剩餘 607 bytes 給區域變數。上限為 1024 bytes 。
+* 草稿碼使用了 7148 bytes (49%) 的程式儲存空間。上限為 14336 bytes。
+* 全域變數使用了 433 bytes (42%) 的動態記憶體，剩餘 591 bytes 給區域變數。上限為 1024 bytes 。
 
 ## 電路設計
 

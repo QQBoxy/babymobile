@@ -10,7 +10,7 @@ byte lastButtonState = 0; // 按鈕最後狀態
 unsigned long toggled[10]; // 時間狀態開關
 unsigned int step = 0;     // 目前腳本步驟
 // 計時間隔 mode 0 ~ 9
-unsigned int interval[10] = {1000, 100, 500, 500, 50, 300, 500, 10000, 1000, 1000};
+unsigned int interval[10] = {1000, 100, 500, 500, 50, 300, 500, 180, 65535, 10000};
 
 // GWS S35/STD
 //byte speeds[21] = {
@@ -42,10 +42,10 @@ byte seven_seg_digits[10][7] = {
     {0, 1, 1, 0, 0, 1, 1}, // = 4
     {1, 0, 1, 1, 0, 1, 1}, // = 5
     {1, 0, 1, 1, 1, 1, 1}, // = 6
-    // {1, 1, 1, 0, 0, 0, 0}, // = 7
-    {1, 1, 1, 0, 1, 1, 1}, // = A
+    {1, 1, 1, 0, 0, 0, 0}, // = 7
     {1, 1, 1, 1, 1, 1, 1}, // = 8
-    {1, 1, 1, 1, 0, 1, 1}  // = 9
+    {1, 1, 1, 0, 1, 1, 1}  // = A
+    // {1, 1, 1, 1, 0, 1, 1} // = 9
 };
 
 void setup()
@@ -112,6 +112,15 @@ int trapezoidal_wave(int degree)
         return 10;
     }
 }
+int tempo_wave(int degree)
+{
+    int tempo[8] = {1, 0, 1, 0, -1, -1, -1, 0};
+    return 10 + tempo[degree % 8] * 5;
+}
+int twoway_square_wave(int degree)
+{
+    return 9 + (degree % 2) * 2;
+}
 
 void loop()
 {
@@ -120,7 +129,7 @@ void loop()
     {
         if (buttonState == HIGH)
         {
-            digit = (digit + 1) % 8;
+            digit = (digit + 1) % 10;
             step = 0;
             switch (digit)
             {
@@ -139,15 +148,15 @@ void loop()
     lastButtonState = buttonState;
     // 設定數字
     sevenSegWrite(digit);
-    // 模式 9
-    if (digit == 7)
+    // 隨機模式
+    if (digit == 9)
     {
-        if ((millis() - toggled[7]) >= interval[7])
+        if ((millis() - toggled[9]) >= interval[9])
         {
-            mode = random(1, 6); // 2 ~ 8
+            mode = random(1, 9); // 1 ~ 8
             Serial.print("Mode: ");
             Serial.println(mode);
-            toggled[7] = millis();
+            toggled[9] = millis();
         }
     }
     else
@@ -194,6 +203,18 @@ void loop()
             // 梯形波
             // Serial.println(trapezoidal_wave(step));
             servo.writeMicroseconds(speeds[trapezoidal_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        case 7:
+            // 節奏波
+            // Serial.println(tempo_wave(step));
+            servo.writeMicroseconds(speeds[tempo_wave(step)]);
+            toggled[mode] = millis();
+            break;
+        case 8:
+            // 低速方波
+            // Serial.println(twoway_square_wave(step));
+            servo.writeMicroseconds(speeds[twoway_square_wave(step)]);
             toggled[mode] = millis();
             break;
         default:
